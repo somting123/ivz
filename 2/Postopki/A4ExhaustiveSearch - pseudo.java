@@ -30,7 +30,7 @@ public class A4ExhaustiveSearch {
         System.out.println("[MESSAGE] " + message);
 
         //Set the upper 40 bits to be zeroes and the lower 24 bits to be random values.
-       byte [] byteKey = generateByteKey(8);
+         byte [] byteKey = generateByteKey(8);
 
         // Testing
 
@@ -63,13 +63,8 @@ public class A4ExhaustiveSearch {
                     Array.setByte(cleanArray,5,(byte)a);
                     Array.setByte(cleanArray,6,(byte)b);
                     Array.setByte(cleanArray,7,(byte)c);
-                    /*cleanArray[5]a;
-                    cleanArray[6] = b;
-                    cleanArray[7] = c;*/
 
                     try {
-
-
                         // Return byteKey.
                         final Cipher decrypt = Cipher.getInstance("DES/ECB/PKCS5Padding");
                         SecretKeySpec key = new SecretKeySpec(cleanArray, "DES");
@@ -87,31 +82,24 @@ public class A4ExhaustiveSearch {
 
                     // If key not found return null;
                     if(currentNumberOfIterations == maxIterations){
-
                         System.out.println("No key found. Check your code.");
                         return null;
-
                     }
-                   // System.out.println(c);
-                    if (c == 127) {
 
+                    if (c == 127) {
                         Array.setByte(cleanArray,7, (byte) 0x00);
                         break;
                     }
                 }
-                //System.out.println("Broken out of c loop.");
-                if(b == 127) {
-                    System.out.println(cleanArray);
-                    Array.setByte(cleanArray,7, (byte) 0x00);
 
+                if(b == 127) {
+                    Array.setByte(cleanArray,7, (byte) 0x00);
                     break;
                 }
             }
             System.out.println("Broken out of b loop.");
             if(a == 127) {
-                System.out.println(Agent.hex(cleanArray));
                 Array.setByte(cleanArray,6, (byte) 0x00);
-
                 break;
             }
         }

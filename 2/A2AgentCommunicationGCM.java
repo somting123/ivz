@@ -53,11 +53,15 @@ public class A2AgentCommunicationGCM {
                 for(int j = 0; j< 2; j++) {
                     for (byte i = 0; i < 5; i++) {
                         if (i % 2 == 0) {
+                            
+                            
                             final byte[] pt = aliceSaysToBob[i].getBytes(StandardCharsets.UTF_8);
                             a.init(Cipher.ENCRYPT_MODE, sharedKey);
                             final byte [] ct = a.doFinal(pt);
                             send("bob", ct);
                             send("bob",a.getIV());
+                            
+                            
                         } else {
                             byte[] bobCt = receive("bob");
                             byte[] bobIv = receive("bob");
