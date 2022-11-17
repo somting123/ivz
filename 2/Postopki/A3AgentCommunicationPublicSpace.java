@@ -1,45 +1,8 @@
-package isp.integrity;
 
-import fri.isp.Agent;
-import fri.isp.Environment;
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.ChaCha20ParameterSpec;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.IvParameterSpec;
-import javax.imageio.ImageTranscoder;
-import java.security.Key;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
-
-/**
- * TASK:
- * We want to send a large chunk of data from Alice to Bob while maintaining its integrity and considering
- * the limitations of communication channels -- we have three such channels:
- * - Alice to Bob: an insecure channel, but has high bandwidth and can thus transfer large files
- * - Alice to Public Space: a secure channel, but has low bandwidth and can only transfer small amounts of data
- * - Bob to Public Space: a secure channel, but has low bandwidth and can only transfer small amounts of data
- * <p>
- * The plan is to make use of the public-space technique:
- * - Alice creates the data and computes its digest (implemented)
- * - Alice sends the data to Bob, and sends the encrypted digest to Public Space
- * - Channel between Alice and Public space is secured with ChaCha20-Poly1305 (Alice and Public space share
- * a ChaCha20 key)
- * - Public space forwards the digest to Bob
- * - The channel between Public Space and Bob is secured but with AES in GCM mode (Bob and Public space share
- * an AES key)
- * - Bob receives the data from Alice and the digest from Public space
- * - Bob computes the digest over the received data and compares it to the received digest
- * <p>
- * Further instructions are given below.
- * <p>
- * https://docs.oracle.com/en/java/javase/11/docs/api/java.base/javax/crypto/Cipher.html
- */
 public class A3AgentCommunicationPublicSpace {
     public static void main(String[] args) throws Exception {
         final Environment env = new Environment();
+
         final Key key = KeyGenerator.getInstance("ChaCha20").generateKey();
         final SecretKey key2 = KeyGenerator.getInstance("AES").generateKey();
 
@@ -126,21 +89,5 @@ public class A3AgentCommunicationPublicSpace {
         env.connect("public-space", "bob");
         env.start();
     }
-    static boolean verify(byte[] tag1, byte[] tag2){
-        if (tag1 == tag2)
-            return true;
-        if (tag1 == null || tag2 == null)
-            return false;
 
-        int length = tag1.length;
-        if (tag2.length != length)
-            return false;
-
-        // This loop never terminates prematurely
-        byte result = 0;
-        for (int i = 0; i < length; i++) {
-            result |= tag1[i] ^ tag2[i];
-        }
-        return result == 0;
-    }
 }

@@ -1,16 +1,3 @@
-package isp.integrity;
-
-import fri.isp.Agent;
-import fri.isp.Environment;
-
-import javax.crypto.KeyGenerator;
-import javax.crypto.Mac;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.Key;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-
 /**
  * TASK:
  * Assuming Alice and Bob know a shared secret key, provide integrity to the channel
@@ -24,29 +11,11 @@ public class A1AgentCommunicationHMAC {
          * Alice and Bob share a secret session key that will be
          * used for hash based message authentication code.
          */
-
         final Key key = KeyGenerator.getInstance("HmacSHA256").generateKey();
         final Mac a = Mac.getInstance("HmacSHA256");
         a.init(key);
 
         final Environment env = new Environment();
-
-        //Podatki
-        final String aliceSaysToBob [] = new String[]{
-                "Leave me alone  6!",
-                "Leave me alone  7!",
-                "Leave me alone  8!",
-                "Leave me alone  9!",
-                "Leave me alone  10!"
-        };
-
-        final String bobSaysToAlice []  = new String[]{
-                "Leave me alone  1!",
-                "Leave me alone  2!",
-                "Leave me alone  3!",
-                "Leave me alone  4!",
-                "Leave me alone  5!"
-        };
 
             env.add(new Agent("alice") {
                 @Override
@@ -71,24 +40,10 @@ public class A1AgentCommunicationHMAC {
                     } else {
                         "Que?"
                     }
-                    // Za B obrneš prejemnike/pošiljatelje.
-
-                    //DODAJ VERIFY 2
+                    // Za B obrneš prejemnike/pošiljatelje.s
                 }
             });
             env.connect("alice", "bob");
             env.start();
         }
 
-    public static boolean verify3(byte[] tag1, byte[] tag2, Key key)
-            throws NoSuchAlgorithmException, InvalidKeyException {
-
-        final Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(key);
-
-        final byte[] tagtag1 = mac.doFinal(tag1);
-        final byte[] tagtag2 = mac.doFinal(tag2);
-
-        return Arrays.equals(tagtag1, tagtag2);
-    }
-}
