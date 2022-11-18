@@ -1,2 +1,1 @@
 # ivz
-help prva naloga
