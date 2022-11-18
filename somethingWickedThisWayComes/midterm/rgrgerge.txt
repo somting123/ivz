@@ -1,4 +1,4 @@
-
+package isp.rsa;
 
 import fri.isp.Agent;
 import fri.isp.Environment;
@@ -75,7 +75,7 @@ public class A1Midterm {
                 byte [] iv = aliceEnc.getIV();
 
 
-                //Alice creates the message (digest).
+               //Alice creates the message (digest).
                 String message = "Ragnarok is comming";
                 final byte[] hashed = hash(1000,message.getBytes(StandardCharsets.UTF_8));
 
@@ -137,10 +137,14 @@ public class A1Midterm {
                     System.out.println("Pass.");
                 }
 
+
+
+                        //compute intergity forand IV
+
+
+                //final byte [] hashFromAlice = receive("server");
                 final byte[] timeStampBytes = longToByteArray(System.currentTimeMillis());
-                // ByteBuffer.Allocate(8).putLong(timestamp);
-                //System.arrayCopy()
-                byte [] payload = payloadFromArray(timeStampBytes,timeStampBytes);
+                byte [] payload = payloadFromArray(hashFromAlice,timeStampBytes);
 
                 // Sign.
                 final Signature signer = Signature.getInstance("RSA");
