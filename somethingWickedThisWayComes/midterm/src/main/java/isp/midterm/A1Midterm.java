@@ -50,35 +50,29 @@ public class A1Midterm {
             @Override
             public void task() throws Exception {
                 // Shared secred key establishment
-                    //Send PK to BOB
-                    send("bob", kpAlice.getPublic().getEncoded());
+                //Send PK to BOB
+                send("bob", kpAlice.getPublic().getEncoded());
 
-                    //Get PK from BOB
-                    // 25%
-                    final X509EncodedKeySpec keySpecAlice = new X509EncodedKeySpec(receive("bob"));
-                    final DHPublicKey bobPublic = (DHPublicKey) KeyFactory.getInstance("DH").generatePublic(keySpecAlice);
+                //Get PK from BOB
+                // 25%
+                final X509EncodedKeySpec keySpecAlice = new X509EncodedKeySpec(receive("bob"));
+                final DHPublicKey bobPublic = (DHPublicKey) KeyFactory.getInstance("DH").generatePublic(keySpecAlice);
 
-                    final KeyAgreement dhAliceAgreement = KeyAgreement.getInstance("DH");
-                    dhAliceAgreement.init(kpAlice.getPrivate());
-                    dhAliceAgreement.doPhase(bobPublic,true);
-
-                    final char[] password = "wkgjfklegjeklgjeklgjdklfgjlroptti490ti9w0iwkdWEF$$WGG$#T3".toCharArray();
-                    final byte [] secretAsSalt = dhAliceAgreement.generateSecret();
-
-                    //Super secret
-                    final SecretKeyFactory pbkdf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-                    final KeySpec  keySpec = new PBEKeySpec(password,secretAsSalt,1000,128);
-                    final SecretKey superDuperSecretKeyForAlice = pbkdf.generateSecret(
-                            new PBEKeySpec(password,secretAsSalt,1000,128)
-                    );
+                final KeyAgreement dhAliceAgreement = KeyAgreement.getInstance("DH");
+                dhAliceAgreement.init(kpAlice.getPrivate());
+                dhAliceAgreement.doPhase(bobPublic,true);
+                final byte[] sharedSecret = dhAliceAgreement.generateSecret();
+                final SecretKeySpec superDuperSecretKeyForAlice = new SecretKeySpec(sharedSecret,
+                        0, 16, "AES");
 
 
-                 final Cipher aliceEnc = Cipher.getInstance("AES/GCM/NoPadding");
-                 aliceEnc.init(Cipher.DECRYPT_MODE,superDuperSecretKeyForAlice);
-                 byte [] iv = aliceEnc.getIV();
+
+                final Cipher aliceEnc = Cipher.getInstance("AES/GCM/NoPadding");
+                aliceEnc.init(Cipher.ENCRYPT_MODE,superDuperSecretKeyForAlice);
+                byte [] iv = aliceEnc.getIV();
 
 
-                 //Alice creates the message (digest).
+                //Alice creates the message (digest).
 
                 String message = "Ragnarok is comming";
                 final byte[] hashed = hash(1000,message.getBytes(StandardCharsets.UTF_8));
@@ -100,34 +94,29 @@ public class A1Midterm {
                 //Get PK from BOB
                 // 25%
                 final X509EncodedKeySpec keySpecAlice = new X509EncodedKeySpec(receive("alice"));
-                final DHPublicKey bobPublic = (DHPublicKey) KeyFactory.getInstance("DH").generatePublic(keySpecAlice);
+                final DHPublicKey alicePublic = (DHPublicKey) KeyFactory.getInstance("DH").generatePublic(keySpecAlice);
 
-                final KeyAgreement dhAliceAgreement = KeyAgreement.getInstance("DH");
-                dhAliceAgreement.init(kpAlice.getPrivate());
-                dhAliceAgreement.doPhase(bobPublic,true);
+                final KeyAgreement dhBobAgreement = KeyAgreement.getInstance("DH");
+                dhBobAgreement.init(kpBob.getPrivate());
+                dhBobAgreement.doPhase(alicePublic, true);
+                final byte[] sharedSecret = dhBobAgreement.generateSecret();
+                final SecretKeySpec superDuperSecretKeyForAlice = new SecretKeySpec(sharedSecret,
+                        0, 16, "AES");
 
-                final char[] password = "aaaaaaaaaaaaaroptti490ti9w0iwkdWEF$$WGG$#T3".toCharArray();
-                final byte [] secretAsSalt = dhAliceAgreement.generateSecret();
-
-                //Super secret
-                final SecretKeyFactory pbkdf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-                final KeySpec  keySpec = new PBEKeySpec(password,secretAsSalt,1000,128);
-                final SecretKey superDuperSecretKeyForBob = pbkdf.generateSecret(
-                        new PBEKeySpec(password,secretAsSalt,1000,128)
-                );
                 final byte [] EncrypteedHashFromAlice = receive("alice");
                 final byte [] hashFromAlice = receive("alice");
                 final byte[] timeStampBytes = longToByteArray(System.currentTimeMillis());
                 byte [] payload = payloadFromArray(hashFromAlice,timeStampBytes);
 
-               // Sign.
+                // Sign.
                 final Signature signer = Signature.getInstance("RSA");
                 signer.initSign(kpBob.getPrivate());
                 signer.update(payload);
                 final byte[] signature = signer.sign();
 
+                //Send everything encoded from bob.
                 Cipher bobEnc = Cipher.getInstance("AES/GCM/NoPadding");
-                bobEnc.init(Cipher.ENCRYPT_MODE,superDuperSecretKeyForBob);
+                bobEnc.init(Cipher.ENCRYPT_MODE,superDuperSecretKeyForAlice);
                 byte [] iv = bobEnc.getIV();
                 byte [] ctPayload = bobEnc.doFinal(payload);
                 byte [] ctSign = bobEnc.doFinal(signature);
@@ -136,7 +125,7 @@ public class A1Midterm {
                 send("server", ctPayload);
                 send("server", ctSign);
 
-               final PublicKey aliceKey = kpA.getPublic();
+                final PublicKey aliceKey = kpA.getPublic();
 
 
             }
@@ -147,7 +136,7 @@ public class A1Midterm {
             public void task() throws Exception {
                 //Send PK to BOB
 
-              }
+            }
         });
 
         env.connect("alice", "bob");
@@ -248,5 +237,5 @@ public class A1Midterm {
         return  payload;
 
     }
-    }
+}
 
