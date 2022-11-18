@@ -1,1 +1,2 @@
 # ivz
+help prva naloga
