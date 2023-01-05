@@ -1,0 +1,220 @@
+I created 3 linked clones named RADIUS, GATEWAY and RW_ALICE.
+On base isp virtual machine i ran sudo apt update and:
+sudo apt-get install openssh-server apache2 curl git
+sudo apt install strongswan strongswan-pki libcharon-extra-plugins apache2 wireshark
+sudo apt install freeradius freeradius-utils apache2 libapache2-mod-auth-radius wireshark
+
+That way the linked clones had these programs already installed.
+
+
+On RADIUS i made 1 network adapter in the internal network intnet.
+
+On GATEWAY i created 2 network adapters, 1 in internal network called intnet and the other was in NatNetwork, which i created in file/preferences/networks/natnetworks.
+
+On RW_ALICE i made 1 network adapter type NatNetwork.
+
+
+
+
+
+1.Gateway network:
+
+GATEWAY Config:
+i ran:
+sudo nano /etc/netplan/01-network-manager-all.yaml
+
+to configure network interfaces, where i included:
+  ethernets:
+    enp0s3:
+      dhcp4: true
+      dhcp-identifier: mac
+    enp0s8:
+      addresses: [172.16.0.1/24]
+
+After that to apply these settings i ran:
+sudo netplan apply
+
+Then i also ran:
+echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
+The above command enables routing, which we will need.
+To enable nat masquerading i ran:
+sudo iptables -t nat -A POSTROUTING -o enp0s3 -j MASQUERADE
+
+test:
+ping google.com
+
+RADIUS config:
+i ran:
+sudo nano /etc/netplan/01-network-manager-all.yaml
+
+to configure network interfaces, where i included:
+  ethernets:
+    enp0s3:
+      addresses: [172.16.0.2/24]
+      gateway4: 172.16.0.1
+      nameservers:
+        addresses: [8.8.8.8]
+
+After that to apply these settings i ran:
+sudo netplan apply
+
+Then i tested with ping 172.16.0.1 and ping google.com.
+
+RW_ALICE config:
+i ran:
+sudo nano /etc/netplan/01-network-manager-all.yaml
+
+to configure network interfaces, where i included:
+  ethernets:
+    enp0s3:
+      dhcp4: true
+      dhcp-identifier: mac
+
+After that to apply these settings i ran:
+sudo netplan apply
+
+Then i tested with ping 10.0.2.4 (GATEWAY) and ping google.com.
+
+
+
+
+
+2.Radius:
+On RADIUS machine i ran:
+sudo nano /etc/freeradius/3.0/clients.conf
+In this file i inserted:
+client gateway {
+    ipaddr = 172.16.0.1
+    secret = radiuspassword
+    require_message_authenticator = no
+    nas_type = other
+}
+
+After i saved the changes i ran:
+sudo nano /etc/freeradius/3.0/users
+
+In this i inserted:
+"alice" Cleartext-Password := "alice"
+
+Then i stopped the service with:
+sudo service freeradius stop
+
+After i started the server with:
+sudo freeradius -X -d /etc/freeradius/3.0
+
+And on Machine GATEWAY i tested it by running:
+echo "User-Name=alice, User-Password=alice" | radclient 172.16.0.2 auth radiuspassword -x
+The command returned Access-Accept which means it was configured correctly.
+
+
+
+
+3 Gateway firewall:
+on GATEWAY i ran:
+git clone https://github.com/lem-course/isp-iptables.git
+After that:
+chmod +x handson-tables.sh
+Then:
+sudo nano ./handson-tables.sh
+
+I added the lines below (comments tell what for):
+
+#Allow all incoming packets that belong to ESTABLISHED or RELATED connections.
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+#allow all routed traffic to pass through
+iptables -A FORWARD -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+#Nat translations
+iptables -t nat -A POSTROUTING -o enp0s3 -j MASQUERADE
+
+#incoming and outgoing pings (ICMP)
+iptables -A OUTPUT -p icmp -m state --state NEW -j ACCEPT
+iptables -A INPUT -p icmp -m state --state NEW -j ACCEPT
+
+#dns outgoing
+iptables -A OUTPUT -p udp --dport 53 -m state --state NEW -j ACCEPT
+
+#ISAKMP incoming
+iptables -A INPUT -p udp --dport 500 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p udp --dport 4500 -m state --state NEW -j ACCEPT
+
+#IPsec(ESP) incoming
+iptables -A INPUT -p esp -m state --state NEW -j ACCEPT
+
+To apply:
+sudo ./handson-tables.sh start
+Then i tested with pings from RADIUS to google.com and gateway ip.
+I also tested with NAS auth request from GATEWAY to RADIUS with command:
+
+To remove the rules before continuing i applied:
+sudo ./handson-tables.sh stop
+
+
+
+
+4. Gateway VPN:
+On GATEWAY virtual machine i ran:
+sudo nano /etc/ipsec.conf
+Inside, i inserted:
+conn %default
+        ikelifetime=60m
+        keylife=20m
+        rekeymargin=3m
+        keyingtries=1
+        keyexchange=ikev2
+        authby=secret
+
+conn net-net
+        leftsubnet=172.16.0.0/24
+        leftfirewall=yes
+        leftid=gw
+	leftauth=psk
+	rightauth=eap-radius
+	rightsubnet=172.16.1.0/24
+        right=%any
+        auto=add
+
+
+Then i changed the file:
+sudo nano /etc/ipsec.secrets
+Where i inserted:
+gw : PSK "mypsk"
+
+I restarted the service with:
+sudo ipsec restart
+
+Then i went on to RW_ALICE virtual machine, where i ran:
+sudo nano /etc/ipsec.conf
+Inside, i inserted:
+conn %default
+        ikelifetime=60m
+        keylife=20m
+        rekeymargin=3m
+        keyingtries=1
+        keyexchange=ikev2
+        authby=secret
+
+conn net-net
+        leftsubnet=172.16.1.0/24
+	rightsubnet=172.16.0.0/24
+	rightid=gw
+	rightfirewall=yes
+        right=%any
+        auto=add
+
+
+I restarted the service with:
+sudo ipsec restart
+
+To test the connection you write:
+sudo ipsec up net-net
+
+Here i had an error: 
+unable to resolve %any, initiate aborted
+tried to checkin and delete nonexisting IKE_SA
+establishing connection 'net-net' failed
+
+5.Road warrior:
+If the VPN configuration works, you test on RW_ALICE if you can ping 172.16.0.2.
