@@ -65,3 +65,27 @@ echo "User-Name=alice, User-Password=password" | radclient 127.0.0.1 auth testin
 7)sudo iptables -A INPUT -p icmp --icmp-type echo-request -m state --state NEW (Isto vpr?)
 8)sudo iptables -A INPUT -p udp -m multiport --dports 500,4500,4510,4511 -m state --state NEW -j ACCEPT (Isto vpr?)
 ========================================================================================
+4 Gateway VPN configuration
+nano /etc/ipsec.conf
+
+config setup
+        # strictcrlpolicy=yes
+        # uniqueids = no
+conn %default
+        ikelifetime=60m
+        keylife=20m
+        rekeymargin=3m
+        keyingtries=1
+        keyexchange=ikev2
+        authby=secret
+
+conn net-net
+        leftsubnet=172.16.1.0/24
+        leftfirewall=yes
+        leftid=gw
+        right=0.0.0.0/0
+        right=@outsideworld
+        auto=add
+20%:
+sudo nano /etc/ipsec.secrets
+gw @outsideworld : PSK "mypsk"
